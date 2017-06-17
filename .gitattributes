@@ -1,0 +1,5 @@
+eol=lf
+
+* text=auto
+*.rst	text diff=astextplain
+
