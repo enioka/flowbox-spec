@@ -12,4 +12,4 @@ copyright = '2017-2200, Enioka'
 hightlight_language = 'cs'
 language = 'en'
 
-html_theme = 'bizstyle'
+#html_theme = 'bizstyle'
