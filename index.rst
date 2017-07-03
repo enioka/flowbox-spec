@@ -73,14 +73,27 @@ implementations may take place as this protocol is designed to be neutral and op
 
 A few definitions
 *****************
-* environment : any IS development process requires different activities (development, integration, unit tests, Q&A, 
-  production)
-* application : there is no
-* application module
-* application instance
-* flow : a flow is an integration sequence of processings and information exchanges between two applications.
-* flow instance : a flow instance is a flow actually instanciated between two application instances.
-* flow occurence
+* **environment** : any IS development process requires different activities (development, integration, unit tests, Q&A, 
+  production, training). One allocates separate so called environments that mimic the future production to support these 
+  activities. It is quite usual to allocate at least a development, a Q&A and a prodcution environment for each project.
+* **application** : there is no very clear definition of what an application is.   It's main purpose is to "divide and conquer" a monolithic information system and to cut it in quite decoupled
+  pieces that can be built, deployed, managed and changed independently from one another. It can be more or less coarse grained.
+  Modern front and agile applications tend to be quite fine grained, where back end ones tend to be coarse grained. 
+  Most of the time applications are a consistent block of software, with consistency from multiple perspectives : 
+  business users, functionalities, data managed, data storage, underlying technologies. 
+* **application instance** : an application instance is a full deployment of an application for a given use in a given
+  environment. The same application may have multiple instances for different perimeters (as per country, per site,
+  per subsidiary). When an application is deployed in an environment, a new instance is allocated as well.
+* **flow** : a flow is an integration sequence of processings and information exchanges between two (or more) applications. It does
+  describe how these applications communicate with one another. Most of the time a flow links two applications only,
+  but in more complex cases a flow may consist in the orchestration of multiple applications communications. A flow is a 
+  coordinated sequence of information communication and information processing between applications.
+* **flow instance** : a flow instance is a flow actually instanciated between two application instances. Most of the time 
+  it should link applications of the same type environments (dev to dev, Q&A to Q&A, prod to prod). But in some cases
+  a flow instance may link environments of different types (when one of the application has multiple environments
+  to support multiple projects).
+* **flow occurence** : a flow occurence happens at each execution of a flow. Each API call for instance is an occurrence of
+  the underlying flow. If a flow is processed in a daily batch, then a flow occurrence is created daily.
 
 
 Main building blocks
@@ -215,7 +228,7 @@ Agent instances & tenants
 =========================
 
 The notion of agent is intended to be strongly linked to the application lifecycle. So in its most straightforward deployement topology
-it is natural to associate at least one agent per application module instance. But scalability or availability may require to deploy more
+it is natural to associate at least one agent per application instance. But scalability or availability may require to deploy more
 than one agent for a given application instance to properly sustain the workload and the expected service level.
 
 Adversely in some cases, this principle may appear as heavy and constraining. Allocating new technical resources for each application 
@@ -228,7 +241,8 @@ resources for their agent). In the following we will use the following vocabular
   two agent instances are two logical autonomous engines.
 * an **agent tenant** is a virtual slice of an agent instance dedicated to the processing of the flows of a give application instance
   when the agent instance is mutualized to support the flows of multiple application instances. When an agent instance has a
-  single tenant, then both notions coincidate.
+  single tenant, then both notions coincidate. 
+* To be noted : the same tenant can be deployed in multiple agent instances. 
 
 Therefore in all communications with agents, one will need to both specify an agent instance (will be the URL to its container) and the
 tenant adressed within this agent instance. In the cases where agents are dedicated to one single application instance module.
@@ -236,6 +250,12 @@ tenant adressed within this agent instance. In the cases where agents are dedica
 
 Protocols
 *********
+
+Protocols are technology neutral specifications of standardized integration mechanisms 
+defined only in terms of http interactions between agent core and its external environment.
+
+SPIs define means to extend the built in agent model or to implement part of its underlying features.
+APIs define language specific bindings (not standardized) provided to applications to interact with agent infrastructure.
 
 General protocol conventions
 ============================
@@ -324,7 +344,6 @@ on communications :
 * <FLOWBOX_HEADER_PREFIX>_FLOW_BUSINESS_TRACKING_ID :
 * <FLOWBOX_HEADER_PREFIX>_FLOW_TECHNICAL_TRACKING_ID :
 
-
 Agent configuration
 -------------------
 The agent is mostly configured remotely after its first deployment. Some agent implementations may provide capability
@@ -336,8 +355,8 @@ as the agent sees fit in its technology context) :
   deployed in multi tenant mode - if could be nice to use agent's instance certificate for the default tenant),
 * fully qualified url to the administration agent from which the agent will get its configuration,
 * flag indicating whether the agent pulls his configuration (default) or if its pushed to the agent by the administration.
-  This flag is required for the agent to wait for its configuration,
-* predefined flow configuration to support administration protocol.
+  This flag is required for the agent to wait for its configuration upon startup when configuration is pushed
+* predefined flow configuration to support administration & log protocol.
 
 All other configuration elements should be derived from administration protocol.
 
@@ -357,7 +376,8 @@ For inbound flows (ie flows coming in the application) :
   asynchronous call, but the provider application exposes only a synchronous interface).
 * Submit payload : delivers payload on a file path as specified in configuration.
 * Run processing : executes a local or remote processing of the application through the execution of 
-  a command line job execution. This processing may either 
+  a command line job execution. This processing may either consume the incoming flow as a file or
+  as an access to the payload with the agent API. 
 * Notify inbound progress : provides feedback on inbound communication events on specified application
   endpoint.
 
@@ -396,7 +416,7 @@ For inbound flows (ie flows coming in the application, necessarily asynchronous)
 Agent to Agent protocol
 =======================
 
-Agent to agent protocol is here voluntarily split in two parts :
+Agent to agent protocol is here voluntarily split in two parts, since agent will support both sides of this protocol :
 * Communication as initiated by on agent
 * Pending service of this communication by another agent.
 
@@ -528,7 +548,6 @@ exchanges, it is handled through the agent protocol.
 the deployment of binaries for instance.
 * Pull configuration artefacts : same with pull by the agent.
 
-
 Agent log protocol
 ==================
 The processing of log is another predefined flow, just like flows for administration. Each agent
@@ -536,11 +555,9 @@ may need to send its logs to zero, one or multiple log syncs through the agent i
 
 Logging control
 ---------------
-Some provision to control the level of logs should be provided as 
+Some provision to control the level of logs should be provided as :
 
-* no log, 
-* production,
-* verbose and debug
+* set log level : no log, production, verbose and debug
 
 Logging payload
 ---------------
@@ -556,11 +573,53 @@ The agent log structure is highly standardized, with (at least) the following
 
 Logs access
 -----------
-The agent protocol provides access to agent local logs
+The agent protocol provides access to agent local logs, with limited performance and history.
+
+* list logs with a search criteria (appli, environment, time, ...)
+* access detailed logs contents with a search criteria
 
 Central logs access
 -------------------
-The log sinks may provide central API to access the logs
+The log sinks may provide central API to access the logs through the agent. These capabilities are to
+be exposed by the log sink agent.
+
+* list logs with a search criteria (appli, environment, time, ...)
+* access detailed logs contents with a search criteria
+
+
+Agent monitoring protocol
+=========================
+
+The agent must provide a standard http monitoring capability from an outside component
+* Exposed health check as a service
+
+The agent must provide a standard http based active monitoring capability
+* Report health to external URL
+
+
+Agent scheduling protocol
+=========================
+Extension of basic scheduling protocol can be provided via the agent scheduling SPI.
+Built in basic scheduling protocol should be provided.
+
+APIs provided to the scheduler
+------------------------------
+  
+Provided as HTTP verbs, can be wrapped in command line tools for easier integration:
+
+* Execute flow
+* Poll flow(s) state
+
+Callbacks to the scheduler
+--------------------------
+
+Command line interface is the built in way to integrate to a scheduler. The following
+callbacks are defined : 
+
+* Report flow progress through command line
+* Notify event through command line
+
+
 
 
 Security model
@@ -626,8 +685,11 @@ stateful and persistent so that upon restart, the state is not lost. First guess
 the SPI :
 
 * get agent instance configuration
+* set agent instance configuration
 * get agent tenant configuration
+* set agent tenant configuration
 * get flow configuration
+* set flow configuration
 * get agent instance state
 * set agent instance state
 * get agent tenant state
@@ -636,7 +698,9 @@ the SPI :
 * set flow state
 * save state
 
-The repository SPI should be 
+The repository SPI should be implemented in different implementations :
+* initial implementation should be file based, with json inside, one fragment per configuration piece held in memory by the agent
+* 
 
 Message store SPI
 =================
@@ -667,33 +731,19 @@ Multiple implementations of this message store are likely :
 Scheduler SPI
 =============
 
-The agent infrastructure should smmothly integrate with production schedulers. And provide key interfaces :
-
-APIs provided to the scheduler
-------------------------------
-  
-Can be provided as HTTP verbs, possibly wrapped in command line tools for easier integration:
-
-* Execute flow
-* Poll flow(s) state
-
-Callbacks to the scheduler
---------------------------
-
-Command line interface is probably the easiest way to integrate to a scheduler
-
-* Report flow progress through command line
-* Notify event through command line
-
+The agent infrastructure should smmothly integrate with production schedulers. Beyond built in 
+scheduler protocol, the agent may provide means to interface more closely with schedulers.
 
 Log SPI
 =======
 
-A log sink must provide interface to the agent infrastructure. Two types of 
-interfaces are to be provided : for logs themselves and for use of the logs
+The Log SPI is the standard way for the agent to interact with logs
 
+* log a new entry in logs
+* list logs for a search criteria
+* access to logs detailed contents for a search criteria
 
-
+This SPI should be based on standard platform logging standards (as log4J or equivalent).
 
 
 
