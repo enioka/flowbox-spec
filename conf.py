@@ -9,7 +9,7 @@ extensions = ['sphinx.ext.todo',]
 project = 'FlowBox'
 copyright = '2017-2200, Enioka'
 #release = '1.0'
-hightlight_language = 'cs'
+highlight_language = 'cs'
 language = 'en'
 
-#html_theme = 'bizstyle'
+html_theme = 'sphinx_rtd_theme'
