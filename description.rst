@@ -30,7 +30,7 @@ To meet these objectives, a few design principles :
 
 * open protocol by design so that any party can provide implementations and enhancements of their own, just as HTTP does,
 * extensible protocol, with strong focus on upward compatibility,
-* no central point by design, even if some deployment topologies can c hoose to centralize some components,
+* no central point by design, even if some deployment topologies can choose to centralize some components,
 * capability to manage a set (or subset) of integration flows from a unified user interface,
 * no language or technology dependency so that anyone can join the virtual ESB with his own languages and tools, 
   given very limited prerequisites (but the standards of the Internet),
@@ -46,10 +46,13 @@ To meet these objectives, a few design principles :
 * therefore think of security as a first rank citizen, not an add on. As a default do not trust more components 
   in the network than you really have to.
 * do not reinvent the wheel and reuse whatever clever solutions that already exist. Either as standards, as open source, 
-  or even as proprietary integration solutions. The need is for help in making things work together, not for new problems to prevent it.
+  or even as proprietary integration solutions. The need is for help in making things work together, not for new problems nor 
+  new "closed doors".
 * especially do not try to change or redefine what an application container is. There a lot of such things, do not 
   force existing applications to tackle with new weird technologies, how clever they may be.
 * integration processing code must belong to an application. There should never be "orphan" code that does not belong to anybody. 
+  Even when hosted by a mutualized and centralized tiers, integration artefacts should have an autonomous lifecycle defined and
+  operated by a product owner.
 
 The purpose of this specification is to define the basis for this general architecture. It is both :
 
@@ -83,10 +86,15 @@ A few definitions
   coordinated sequence of information communication and information processing between applications.
 * **flow instance** : a flow instance is a flow actually instanciated between two application instances. Most of the time 
   it should link applications of the same type environments (dev to dev, Q&A to Q&A, prod to prod). But in some cases
-  a flow instance may link environments of different types (when one of the application has multiple environments
+  a flow instance may link environments of different types (for instance when one of the application has multiple environments
   to support multiple projects).
 * **flow occurence** : a flow occurence happens at each execution of a flow. Each API call for instance is an occurrence of
-  the underlying flow. If a flow is processed in a daily batch, then a flow occurrence is created daily.
+  the underlying flow. If a flow is processed in a daily batch, then a flow occurrence is created daily per environment.
+* **flow org** : with the ever growing size and complexity of integration flows in today's information systems, there is a need for 
+  modularity and partitionning of responsibilities. At least to delineate frontiers between internal and external applications. If
+  one sees the whole (hyper)graph of flows (with applications as nodes and flows as edges), it is quite believably a strongly connected graph 
+  of all information systems (even through very indirect and weak links). A flow org is therefore a subgraph of this global graph 
+  that defines a "territory" in terms of management.
 
 
 Main building blocks
@@ -105,7 +113,13 @@ The flowbox protocol defines interactions between a few core components :
 * the **application** : as stated in the definitions, we consider integration between applications. The application itself 
   has some role to play in the integration task. The less the better. But in the end, it is (more and more) a primal
   function of an application to integrate to its environment. Every application must consume and provide services and 
-  information from/to others.
+  information from/to others. The notion of application in itself is not so clearly defined. In most contexts, it defines
+  some level of isolation of some piece of functionality of an information system that has a (strongly) consistent lifecycle
+  (with well defined product owners, development teams and process, release management strategy, ...) and somewhat autonomous
+  and modular infrastructure (storage, application servers, namespaces, ...). In a "micro services" based architecture, the very
+  notion of application may be harder to define, especially when based on shared data storage and no explicit modularity. Anyway
+  an application here is some "piece" of an information system needing to integrate with another "piece" considered as
+  sufficiently different to need an explicit integration layer inbetween for their integration. 
 * the **agent** : each application has an agent (some may say an emissar) that acts as a proxy (for outgoing flows) or 
   a reverse proxy (for incoming flows). The agent is the place where (a part of) the integration processing takes
   place and is the unique touch point of the application with the "outside". Though the design promotes for a quite 
@@ -122,9 +136,12 @@ The flowbox protocol defines interactions between a few core components :
   application(s) are by design only specialized cases of applications with predefined flows specifications. Any given 
   configuration element can be managed by only one administration application. Any agent belongs to one and only one
   floworg. However it can have flows with agents of other floworgs.
-* the **log** sink(s) : this the place that consolidates all logs of all parties. Just as for administration application(s)
-  there could be multiple such sinks for large deployments. Still to be defined whether any log can be shipped to only 
-  one or multiple log sinks.
+* the **log** sink(s) : this the place that consolidates all logs of all parties involved in some integration scope. 
+  Just as for administration application(s) there could be multiple such sinks for large deployments. Still to be defined 
+  whether any log can be shipped to only one or multiple log sinks. There is no specific reason to enforcea 1:1 match
+  bewteen log sinks and floworgs. Still, it is a requirement for a log sink to be able to "know" to which (unique) floworg
+  any log belongs. With appropriate permissions a floworg may provide visibility of its flows to another floworg. But as a
+  default, a floworg should be entitled only to see its own logs. 
 
 Extension components
 ====================
@@ -155,21 +172,33 @@ implement agents, to further promote reuse, sharing and concepts interoperabilit
   the agent execution (as an IIS website or a Java application). It is specific to both the language and the container type. 
   A standalone container can be provided where this agent container is a container of its own. But most of the time, the agent 
   container will leverage existing container technologies. The benefit for agent container is to abstract the underlying
-  services needed for an agent to properly deliver its features. But an agent may completely 
+  services needed for an agent to properly deliver its features. But an agent may completely implement such services from 
+  scratch, or with light weight components. The container supports agent lifecycle (deployment, start/stop), provides
+  computing resources (network endpoints, threads, memory, ...) and general purpose administration.
 * The **agent client sdk** : as a convenience (not mandatory), application code has to connect to its agent. In simple cases
   it can be achieved through native http protocol. However, to simplify boilerplate code to interoperate between agent and
-  application, the agent client sdk intends to provide applications with a standardized API in their native language.
+  application, the agent client sdk intends to provide applications with a standardized API in their native language, that
+  will both support flow execution and interactions with agent.
 
 IT  infrastructure
 ==================
 The flowbox protocol must also integrate to its infrastructure environment. It has a number of touch points that need 
 to be addressed in the specification, even if informal.
 
-* network (datacenters, topologies, firewalls and security zones, ...)
-* DNS,
-* load balancers,
-* virtualization and cloud,
-* containers  
+* network (datacenters, topologies, firewalls and security zones, ...) : the flowbox is "network friendly" and makes no 
+  hypothesis of network structure, network security rules and zones. The agent infrastructure can easily be deployed in
+  any network context. One may consider the possibility to let flowbox agents natively interact with network APIs to
+  provision any needed network infrastructure (sdn) to support integration flows.
+* DNS : the flowbox relies (recommended) heavily on standard DNS capabilities to abstract network actual implementation from
+  the applications. Each agent endpoint is associated with abstract DNS adresses. Here also, flowbox may at some point provide 
+  integration points to provision any DNS entries.
+* load balancers : agents as application components must support standard application patterns for high availability and
+  scalability. For this agents provide a native capability to be deployed in load balanced topologies with multiple agent
+  instances running a workload. Furthermore, agents can inform load balancers for smart balancing of the workload or to
+  support maintenance task as bringing down an agent without loosing connections or data.
+* virtualization and cloud : 
+* containers and associated deployment tools and orchestrators : agents should be deployed as any application artefacts if 
+  dedicated or colocated with application containers.
 
 Development environment
 =======================
@@ -189,9 +218,21 @@ IT management & operations
 The flowbox protocol must also integrate to its IT management environment, for smooth operations, from setup
 to day to day operations :
 
-* scheduling :
-* monitoring :
-* incidents management :  
+* scheduling : the flowbox protocol is designed to smmoothly integrate with IT schedulers. The main features being
+  to notify the scheduler of any flow event as a trigger to launch a new scheduled task, and to provide means for
+  a scheduler to launch flows as jobs, and to monitor their execution. Provision is taken to be able to provide this
+  interface either locally (for distributed schedulers with local agents) as well as centrally (to one/multiple centralized
+  scheduler APIs).
+* monitoring : the flowbox protocol is designed to simplify monitoring and provides both active and passive health checks to
+  report the health of agents, both centrally and locally (letting either the agent network or the monitoring solution take
+  care of agregating alerts of all agents).
+* log management : the flowbox protocol is designed to provide extensive and detailed log of its operations, both as a support
+  to monitoring and to help support teams in resolving issues. The flowbox is intended to include a predefined log sink service
+  based on state of the art log management solutions (as ELK) and to centralize its logs by its own infrastructure, possibly beyond
+  its own frontiers (centralizing logs of external partners). Multiple implementations of this log sink service can be plugged in
+  as long as they connect to the specified log protocol. Beyond that, agents generate logs locally to their installation and these
+  logs that can be directly processed by existing log solutions.
+* incidents management :  the flowbox protocol provides standardized means to handle incidents by providing
 * operations automation : 
 * user provisionning : 
 * environment provisionning & management : 
@@ -220,7 +261,7 @@ in the flowbox architecture is therefore a link between (at least) two applicati
 Agent instances & tenants
 =========================
 
-The notion of agent is intended to be strongly linked to the application lifecycle. So in its most straightforward deployement topology
+The notion of agent is intended to be strongly linked to the application lifecycle. So in its most straightforward deployment topology
 it is natural to associate at least one agent per application instance. But scalability or availability may require to deploy more
 than one agent for a given application instance to properly sustain the workload and the expected service level.
 
@@ -232,13 +273,14 @@ resources for their agent). In the following we will use the following vocabular
 * an **agent instance** represents a deployment of the agent code in a given container, providing its isolation. In some cases, one may choose
   that multiple agent instances actually share their binary code. But it is a matter of technical optimization. We will consider that 
   two agent instances are two logical autonomous engines.
-* an **agent tenant** is a virtual slice of an agent instance dedicated to the processing of the flows of a give application instance
+* an **agent tenant** is a virtual slice of an agent instance dedicated to the processing of the flows of a given application instance
   when the agent instance is mutualized to support the flows of multiple application instances. When an agent instance has a
   single tenant, then both notions coincidate. 
 * To be noted : the same tenant can be deployed in multiple agent instances. 
 
 Therefore in all communications with agents, one will need to both specify an agent instance (will be the URL to its container) and the
-tenant adressed within this agent instance. In the cases where agents are dedicated to one single application instance module.
+tenant adressed within this agent instance. In the cases where agents are dedicated to one single application instance module, the tenant
+will not need to be specified, the default tenant will handle the communications.
 
 
 Protocols
@@ -273,28 +315,31 @@ Principles
 * Least interference with native application protocols
 * No wrapper (still under discussion)
 
-Agent URL structure as seen by applications
--------------------------------------------
-https://<hostname>:<port>/<container-specific-agent-prefix>/<agent-id>/<agent-service>/<application-uri>
+Agent URL structure
+-------------------
+https://<hostname>:<port>/<container-specific-agent-prefix>/<agent-tenant-id>/<agent-service>/<application-uri>
 
 Where : 
 
-* https is not optional, since https tls certificate client negociation is a an essential part of the security
+* **https** is not optional, since https tls certificate client negociation is a an essential part of the security
   model.
-* <hostname> is a conventional addressing scheme as defined by the customer/organization. Recommendation is to define 
+* **<hostname>** is a conventional addressing scheme as defined by the customer/organization. Recommendation is to define 
   an alias to hostname for each application instance (ie defined per application, environment et possibly instanciation
   perimeter). But agnostic for agent infrastructure that will in all cases know the whole access path to each agent 
   in the configuration. When agent is mutualized and deployed as a multitenant container, it will have a generic meaning 
   (as API gateway agent in production).
-* <port> should be 443 (default for https) as much as possible. 
-* <container-specific-agent-prefix> is any arbitrary path as defined during agent deployment. Recommended to be as 
+* **<port>** should be 443 (default for https) as much as possible. But could be specific port if needed.
+* **<container-specific-agent-prefix>** is any arbitrary path as defined during agent deployment. Recommended to be as 
   standard as possible for each agent technology, container and organization. It does uniquely identify an agent instance.
-* <agent-id> is a locally unambiguous agent tenant id within the agent container. If <agent-id> is default or none, then the first 
+* **<agent-tenant-id>** is a locally unambiguous agent tenant id within the agent container. If <agent-id> is default or none, then the first 
   (default) agent deployment in this container is used. <agent-id> is an arbitrary name or id used in the agent instance 
   configuration to identify an agent tenant. This is an optional part in the URL of the agent, whose semantics are
   however known by the agent to agent protocol.
-* <agent-service> identifies which part of the agent to adress, depending on who is calling for what purpose.
-* <application-uri> is dependent on the type of service called. When handling an application flow, either inbound or
+* **<agent-service>** identifies which part of the agent to adress, depending on who is calling for what purpose. Though it is not
+  strictly necessary to standardize this part of the protocol (any URL could do the job), it would be easier to follow a general
+  rule in the URL structure to easily distinguish different types of communications from the URL without need to further inspect
+  actual communication content.
+* **<application-uri>** is dependent on the type of service called. When handling an application flow, either inbound or
   outboud, this uri is closely derived from the initial native uri exposed or consumed by applications.
 
 <agent-service> is the key routing entry point in the agent that will ensure that the request is properly handled. It is
@@ -305,14 +350,16 @@ It can be one of :
 * WS : this endpoint does handle all web services related calls that the application can call.
 * MSG : this endpoint does handle all message related calls that the application can call. 
 * FILE : this endpoint does handle all file related calls that the application can call.
-* APP : this endpoint groups all agent services related to application, to provide configuration and runtime services to the
+* API : this endpoint groups all agent services related to application, to provide configuration and runtime services to the
   participating applications.
+* ADM : this endpoint provides a secured access for administration tools to manage the agents (scheduling, start/stop, 
+  monitoring, performance management, ...)
   
-Question : does it make sense to distinguish WS/MSG/FILE ? what benefits ?
+Question : does it make sense to distinguish WS/MSG/FILE ? what benefits ? A single DATA agent service could be enough.
 
 Agent headers
 -------------
-A number of notions need to be handled out of band of the main payload since payload could (should) be encrypted. Unless 
+A number of notions need to be handled out of band of the main payload since payload itself could (should) be encrypted. Unless 
 explicitely entitled to "look" into the payload, agent code should never do more than forward the content as a
 black box. Only applications, and their delegates plug ins in the agents can possibly access the payload. Therefore, the
 agent must find in headers (possibly optionnally url ??) a number of information required to know what to do with incoming
@@ -344,14 +391,20 @@ to upgrade an existing deployment, even possibly deploy agent automatically. Thi
 protocol (but optional in support). Each agent instance has the following mandatory configuration elements (stored
 as the agent sees fit in its technology context) :
 
-* path to certificate of the agent instance (yet to see if there is also a certificate per agent tenant when agent is
+* unique agent id in the agent's global network. The agent id is a universal unique id to be generated before 
+  or during agent install. This id should be registered in the administration application that manages this agent.
+* floworg to which this agent belongs. As stated in the definitions an agent belongs to a single floworg.
+* path/name of certificate of the agent instance (yet to see if there is also a certificate per agent tenant when agent is
   deployed in multi tenant mode - if could be nice to use agent's instance certificate for the default tenant),
-* fully qualified url to the administration agent from which the agent will get its configuration,
-* flag indicating whether the agent pulls his configuration (default) or if its pushed to the agent by the administration.
-  This flag is required for the agent to wait for its configuration upon startup when configuration is pushed
-* predefined flow configuration to support administration & log protocol.
+* fully qualified url to the administration application agent from which the agent will get its configuration,
+* flag indicating whether the agent pulls his configuration (default) or if its pushed to the agent by the administration. 
+  This flag is required for the agent to wait for its configuration upon startup when configuration is pushed or to
+  retrieve its configuration from the administration agent.
+* predefined flow configuration to support administration & log protocol. This is the bootstrap configuration of the agent
+  guaranteed to be both minimal and stable for a given release of the protocol.
 
-All other configuration elements should be derived from administration protocol.
+All other configuration elements should be derived from administration protocol and provided by the administration application
+that manages the agent.
 
 
 Application to Agent protocol
@@ -365,24 +418,27 @@ Initiated by an agent
 For inbound flows (ie flows coming in the application) :
 
 * Call synchronous service : calls a synchronous service provided by the application. Can be called either 
-  in an end to end synchronous call, as well as in message to synchronous bridge (caller performs an 
+  in an end to end synchronous call, as well as in message to synchronous bridge (agent processes an 
   asynchronous call, but the provider application exposes only a synchronous interface).
-* Submit payload : delivers payload on a file path as specified in configuration.
+* Submit payload : delivers payload on a file path as specified in configuration. The application may consume
+  this payload by itself or (next) be called explicitely to consume it.
 * Run processing : executes a local or remote processing of the application through the execution of 
   a command line job execution. This processing may either consume the incoming flow as a file or
   as an access to the payload with the agent API. 
 * Notify inbound progress : provides feedback on inbound communication events on specified application
-  endpoint.
+  endpoint. For these, the agent calls a synchronous service provided by the application.
 
 For outbound flows (ie flows coming out of the application), the agent may initiate application processing
 when the application itself has no capability to actively start the flows. :
 
 * Call synchronous service : calls a synchronous service provided by the application to collect the outgoing
   payload. This payload can possibly be processed synchronously or asynchronously further.
-* Consume payload : consume payload on a file path as specified in configuration. This payload is ei
+* Consume payload : consume payload on a file path as specified in configuration. This payload is either provided
+through a folder storage, or (next) generates the file on demand.
 * Run processing : executes a local or remote processing of the application through the execution of 
   a command line job execution. This processing may produce a file or directly send data to the agent (using SDK).
-* Notify outbound progress : provides feedback on outbound communication events to the application (if it did register to such notifications).
+* Notify outbound progress : provides feedback on outbound communication events to the application (if it did register 
+  to such notifications from the agent).
 
 Initiated by an application
 ---------------------------
@@ -398,24 +454,50 @@ For outbound flows (ie flows coming out of the application) :
 
 For inbound flows (ie flows coming in the application, necessarily asynchronous) :
 
-* Get list of ids of received messages or files
+* Get list of ids of received messages or files 
 * Get metadata of specified id message(s) or files
 * Get message payload of specified id message(s)
 * Get file payload of specified id file
 * Get payload of specified id message(s) on specified file path (accessible by agent)
-* Report processing progress of inbound flow (internal integration progress)
+* Report processing progress of inbound flow (internal integration progress). Includes acknowledge of incoming flows.
+
+For other information and services delivered by the agent, not specifically related to application's flows :
+* Get application configuration : agent network provides capability to leverage agent infrastructure to distribute
+  application configuration to applications at runtime. This information is provided by the administration application.
+* Get application environment configuration : idem for information specific to the environment.
+* Update application state : agent network provides capability to application to provide state information to administration console. This
+  information has no specific semantics for agents themselves, they just relay the information.
+* Log : agent network provides capability to application to centralize some of its logs along with the flowbox logs. This should be limited
+  to logs with relevance to flows (and use proposed standardized log structure to do so and relate logs to specific flows, flow
+  instances and flow occurrences.
+
 
 Agent to Agent protocol
 =======================
 
-Agent to agent protocol is here voluntarily split in two parts, since agent will support both sides of this protocol :
-* Communication as initiated by on agent
-* Pending service of this communication by another agent.
+Agents communicate between themselves with a basic protocol. This protocol has few peculiarities. It is intended
+to be as transparent as possible with respect to the actual payload of applications it does support. Agent to agent
+protocol has three main purposes : 
+* heart beat : the heart beat protocol is there to keep agents informed of their neighbors state and expectations. Without
+  any application sollicitation, the network of agents takes care to monitor its state in a distributed way with no 
+  assumptions of any "master agent or node". Furthermore, since many tasks may take place asynchronously and communication
+  channels may be initiated in either way with respect to actual data flow, agents need to "know" if their counterparts
+  need to be called to fulfill any tasks. Last but not least the heart beat protocol takes care to provide information to 
+  applications and overall agents network of the progress of ongoing flows.
+* synchronous flows relaying : agents act as a general purpose reverse proxy and can relay both requests and responses between
+  applications. This relaying can be simple in point to point communications between two applications and their agents. But 
+  more elaborate relays may be needed to accomodate network security constraints or orchestration needs. Therefore, agents 
+  with "pseudo applications" may stay "in the middle" for this purpose to route or orchestrate synchronous flows. Synchronous
+  calls are relayed only from initiator (no inversion of data flow supported in synchronous mode).
+* asynchronous flows relaying : agents act as a general transport infrastructure for asynchronous messages or file transfers. 
+  Here also, multiple agents can be cascaded as needed to deliver payloads and provide additional services on top of existing
+  flows. Asynchronous flow may change initiator along the path of agents. Asynchronous communications from an agent to another
+  may arbitrarily be initiated by an agent or another, even if pushing from initiator is the default recommended way.
 
 Heart beat
 ----------
 When two agents are connected by at least one flow, they may need to monitor one another, both to
-properly handle pause of agents, and for asynchronous processings between the two agents. This polling
+properly handle availability of agents, and for asynchronous processings between the two agents. This polling
 between agents is mutualized between flows to minimize polling between agents. It can be used in
 both ways, depending on possible constraints in network security (some agents may not be able to
 call others).
@@ -434,11 +516,13 @@ Synchronous calls relaying
 When performing a synchronous call on another application, an agent may need to forward (or
 issue) a synchronous call on another agent. Synchronous calls are not multiplexed.
 
-* Call service : this is the request send to another agent
+* Call service : this is the request sent to another agent
 * Answer service : service & response of previous.
 
 Asynchronous calls relaying
 ---------------------------
+Asynchronous payloads processing, handles both push and pull of payloads, and involves notification propagation
+along the way back to the sender 
 * Push payloads : to push flows from an agent message store to another
   agent message store. This push can handle messages, or files
   (possibly only by reference). For efficiency, multiple payloads may
@@ -730,35 +814,43 @@ store is organized per agent tenant.
 
 Multiple implementations of this message store are likely :
 
-* Flat file implementation,
+* Flat file implementation with basic sharing capability,
+* Flat file implementation with advanced (scalable) sharing capability,
 * Relational database (generic) implementation,
 * MOM implementation (using standard MOM APIs),
+* Kafka implementation (?),
+* Cloud services based (as AWS SQS, Azure Service Bus)
 
 Scheduler SPI
 =============
 
 The agent infrastructure should smmothly integrate with production schedulers. Beyond built in 
-scheduler protocol, the agent may provide means to interface more closely with schedulers.
+scheduler protocol, the agent may provide means to interface more closely with schedulers when
+built on proprietary protocols.
 
 Log SPI
 =======
 
-The Log SPI is the standard way for the agent to interact with logs
+The Log SPI is the standard way for the agent to interact with (local) logs
 
 * log a new entry in logs
 * list logs for a search criteria
 * access to logs detailed contents for a search criteria
 
-This SPI should be based on standard platform logging standards (as log4J or equivalent).
-
+This SPI should be based on standard platform logging standards (as slf4j or equivalent in different languages).
+Even if only first is actually mandatory, it is highly recommended for an agent to implement the two others so that the agent
+can provide to a central administration basic access to log information in realtime without need for a 
 
 
 Notification SPI
 ================
 
 This does provide ways for each agent to notify external components of events
-that happen within the agent. Beyond native notifications to applications and
-scheduler capability to notify monitoring tools or mails or any end user.
+that happen within the agent, or returned by other partner agents. 
+Beyond native notifications to applications and
+scheduler capability to notify monitoring tools or mails or any end user, this SPI
+should provide means to notify external parties (application or administration solutions) of
+what happens in the flows and agents network with specific protocols.
 
 
 
