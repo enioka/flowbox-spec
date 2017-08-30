@@ -434,7 +434,7 @@ when the application itself has no capability to actively start the flows. :
 * Call synchronous service : calls a synchronous service provided by the application to collect the outgoing
   payload. This payload can possibly be processed synchronously or asynchronously further.
 * Consume payload : consume payload on a file path as specified in configuration. This payload is either provided
-through a folder storage, or (next) generates the file on demand.
+  through a folder storage, or (next) generates the file on demand.
 * Run processing : executes a local or remote processing of the application through the execution of 
   a command line job execution. This processing may produce a file or directly send data to the agent (using SDK).
 * Notify outbound progress : provides feedback on outbound communication events to the application (if it did register 
@@ -461,15 +461,12 @@ For inbound flows (ie flows coming in the application, necessarily asynchronous)
 * Get payload of specified id message(s) on specified file path (accessible by agent)
 * Report processing progress of inbound flow (internal integration progress). Includes acknowledge of incoming flows.
 
-For other information and services delivered by the agent, not specifically related to application's flows :
-* Get application configuration : agent network provides capability to leverage agent infrastructure to distribute
-  application configuration to applications at runtime. This information is provided by the administration application.
+For other information and services delivered by the agent, not specifically related to application's flows:
+* Get application configuration : agent network provides capability to
+leverage agent infrastructure to distribute application configuration to applications at runtime. This information is provided by the administration application.
 * Get application environment configuration : idem for information specific to the environment.
-* Update application state : agent network provides capability to application to provide state information to administration console. This
-  information has no specific semantics for agents themselves, they just relay the information.
-* Log : agent network provides capability to application to centralize some of its logs along with the flowbox logs. This should be limited
-  to logs with relevance to flows (and use proposed standardized log structure to do so and relate logs to specific flows, flow
-  instances and flow occurrences.
+* Update application state : agent network provides capability to application to provide state information to administration console. This information has no specific semantics for agents themselves, they just relay the information.
+* Log : agent network provides capability to application to centralize some of its logs along with the flowbox logs. This should be limited to logs with relevance to flows (and use proposed standardized log structure to do so and relate logs to specific flows, flow instances and flow occurrences.
 
 
 Agent to Agent protocol
@@ -478,21 +475,9 @@ Agent to Agent protocol
 Agents communicate between themselves with a basic protocol. This protocol has few peculiarities. It is intended
 to be as transparent as possible with respect to the actual payload of applications it does support. Agent to agent
 protocol has three main purposes : 
-* heart beat : the heart beat protocol is there to keep agents informed of their neighbors state and expectations. Without
-  any application sollicitation, the network of agents takes care to monitor its state in a distributed way with no 
-  assumptions of any "master agent or node". Furthermore, since many tasks may take place asynchronously and communication
-  channels may be initiated in either way with respect to actual data flow, agents need to "know" if their counterparts
-  need to be called to fulfill any tasks. Last but not least the heart beat protocol takes care to provide information to 
-  applications and overall agents network of the progress of ongoing flows.
-* synchronous flows relaying : agents act as a general purpose reverse proxy and can relay both requests and responses between
-  applications. This relaying can be simple in point to point communications between two applications and their agents. But 
-  more elaborate relays may be needed to accomodate network security constraints or orchestration needs. Therefore, agents 
-  with "pseudo applications" may stay "in the middle" for this purpose to route or orchestrate synchronous flows. Synchronous
-  calls are relayed only from initiator (no inversion of data flow supported in synchronous mode).
-* asynchronous flows relaying : agents act as a general transport infrastructure for asynchronous messages or file transfers. 
-  Here also, multiple agents can be cascaded as needed to deliver payloads and provide additional services on top of existing
-  flows. Asynchronous flow may change initiator along the path of agents. Asynchronous communications from an agent to another
-  may arbitrarily be initiated by an agent or another, even if pushing from initiator is the default recommended way.
+* heart beat : the heart beat protocol is there to keep agents informed of their neighbors state and expectations. Without any application sollicitation, the network of agents takes care to monitor its state in a distributed way with no assumptions of any "master agent or node". Furthermore, since many tasks may take place asynchronously and communication channels may be initiated in either way with respect to actual data flow, agents need to "know" if their counterparts need to be called to fulfill any tasks. Last but not least the heart beat protocol takes care to provide information to applications and overall agents network of the progress of ongoing flows.
+* synchronous flows relaying : agents act as a general purpose reverse proxy and can relay both requests and responses between applications. This relaying can be simple in point to point communications between two applications and their agents. But more elaborate relays may be needed to accomodate network security constraints or orchestration needs. Therefore, agents with "pseudo applications" may stay "in the middle" for this purpose to route or orchestrate synchronous flows. Synchronous calls are relayed only from initiator (no inversion of data flow supported in synchronous mode).
+* asynchronous flows relaying : agents act as a general transport infrastructure for asynchronous messages or file transfers. Here also, multiple agents can be cascaded as needed to deliver payloads and provide additional services on top of existing flows. Asynchronous flow may change initiator along the path of agents. Asynchronous communications from an agent to another may arbitrarily be initiated by an agent or another, even if pushing from initiator is the default recommended way.
 
 Heart beat
 ----------
@@ -523,13 +508,9 @@ Asynchronous calls relaying
 ---------------------------
 Asynchronous payloads processing, handles both push and pull of payloads, and involves notification propagation
 along the way back to the sender 
-* Push payloads : to push flows from an agent message store to another
-  agent message store. This push can handle messages, or files
-  (possibly only by reference). For efficiency, multiple payloads may
-  be multiplexed. Files may be broken down. Push is the preferred transport for asynchronous communications.
+* Push payloads : to push flows from an agent message store to another agent message store. This push can handle messages, or files (possibly only by reference). For efficiency, multiple payloads may be multiplexed. Files may be broken down. Push is the preferred transport for asynchronous communications.
 * Receive payloads : this is the converse of previous seen from the other agent.
-* Push notifications : to report flows progress to other agents
-  involved in the communication. Possibly part of the heartbeat process rather than a dedicated call.
+* Push notifications : to report flows progress to other agents involved in the communication. Possibly part of the heartbeat process rather than a dedicated call.
 * Process notifications : this is the converse of previous seen from the other agent.
 * Pull payloads : to pull payloads from another when security constraints require to pull rather than push.
 * Serve payloads : this is the converse of previous seen from the other agent.
