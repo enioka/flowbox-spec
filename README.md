@@ -38,6 +38,12 @@ cd flowbox-spec
 sphinx-build -b html . target
 ```
 
+Under *nix systems, this can also be run with make:
+```
+source ./venv/bin/activate
+make html
+```
+
 ## How to write some documentation
 
 See... the documentation!
