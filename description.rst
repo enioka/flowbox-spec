@@ -15,10 +15,10 @@ We feel that these solutions focus too much on development tasks, and not enough
 And by thinking that they are THE ultimate and universal integration solution and not just one of them, they miss the hardest
 point to address which is to scale with (organisation, IT) complexity and time.
 
-The main objectives of this project are :
+The main objectives of this project are : 
 
 * to bring a highly consistent integration solution for new highly hybrid information systems, that mix and match 
-  on premise and cloud, software packages and custom developments, own services and partners' services,
+  on premise and cloud, software packages and custom developments, own services and partners' services, 
 * to provide a global integration framework that will natively meet most demanding requirements for agility, expressiveness, 
   robustness, security, high availability, scalability, manageability, at little cost for developpers,
 * to support all integration schemes : files, messaging and synchronous services, from simple integrations (as native webservice 
@@ -800,6 +800,7 @@ The agent code should access its configuration repository in a standardized way.
 provides configuration information in read only mode. Some agent information still can be 
 stateful and persistent so that upon restart, the state is not lost. First guess on
 the SPI :
+
 * get agent configuration object (for following APIs)
 * get agent instance configuration
 * set agent instance configuration
