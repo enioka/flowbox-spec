@@ -317,6 +317,9 @@ Principles
 
 Agent URL structure
 -------------------
+An agent is (only) addressed through HTTPS, with a general URL structure that is the same whatever the component
+communicating with the agent. 
+
 https://<hostname>:<port>/<container-specific-agent-prefix>/<agent-tenant-id>/<agent-service>/<application-uri>
 
 Where : 
@@ -331,31 +334,40 @@ Where :
 * **<port>** should be 443 (default for https) as much as possible. But could be specific port if needed.
 * **<container-specific-agent-prefix>** is any arbitrary path as defined during agent deployment. Recommended to be as 
   standard as possible for each agent technology, container and organization. It does uniquely identify an agent instance.
-* **<agent-tenant-id>** is a locally unambiguous agent tenant id within the agent container. If <agent-id> is default or none, then the first 
+* **<agent-tenant-id>** is a locally unambiguous agent tenant id within the agent container. If <agent-id> is default, then the first 
   (default) agent deployment in this container is used. <agent-id> is an arbitrary name or id used in the agent instance 
-  configuration to identify an agent tenant. This is an optional part in the URL of the agent, whose semantics are
-  however known by the agent to agent protocol.
+  configuration to identify an agent tenant. This is a mandatory part in the URL of the agent, whose semantics are
+  known by the agent to agent protocol.
 * **<agent-service>** identifies which part of the agent to adress, depending on who is calling for what purpose. Though it is not
   strictly necessary to standardize this part of the protocol (any URL could do the job), it would be easier to follow a general
   rule in the URL structure to easily distinguish different types of communications from the URL without need to further inspect
   actual communication content.
-* **<application-uri>** is dependent on the type of service called. When handling an application flow, either inbound or
-  outboud, this uri is closely derived from the initial native uri exposed or consumed by applications.
+* **<application-uri>** is dependent on the type of service called. When handling application / agent communications, either inbound or
+  outbound, this uri is closely derived from the initial native uri exposed or consumed by applications. When dealing with
+  agent to agent communications, application uri is empty (any application uri is passed in headers).
 
 <agent-service> is the key routing entry point in the agent that will ensure that the request is properly handled. It is
 a convenience to ease agent requests routing and to delineate start of application specific url.
 It can be one of : 
 
-* AGENT : this endpoint gathers all exchanges between agents
-* WS : this endpoint does handle all web services related calls that the application can call.
-* MSG : this endpoint does handle all message related calls that the application can call. 
-* FILE : this endpoint does handle all file related calls that the application can call.
-* API : this endpoint groups all agent services related to application, to provide configuration and runtime services to the
+* **AGENT** : this endpoint gathers all exchanges between agents
+* **WS** : this endpoint does handle all web services related calls that the application can call.
+* **MSG** : this endpoint does handle all message related calls that the application can call. 
+* **FILE** : this endpoint does handle all file related calls that the application can call.
+* **API** : this endpoint groups all agent services related to application, to provide configuration and runtime services to the
   participating applications.
-* ADM : this endpoint provides a secured access for administration tools to manage the agents (scheduling, start/stop, 
+* **ADM** : this endpoint provides a secured access for administration tools to manage the agents (scheduling, start/stop, 
   monitoring, performance management, ...)
   
 Question : does it make sense to distinguish WS/MSG/FILE ? what benefits ? A single DATA agent service could be enough.
+
+Agent addresses
+---------------
+
+An agent must be assigned multiple logical adresses, depending on who . 
+
+The recommendation is to declare each as a different logical address in DNS even if in some deployments/environments, 
+these logical adresses may be bound to the same ip address.
 
 Agent headers
 -------------
@@ -383,6 +395,7 @@ on communications :
 * <FLOWBOX_HEADER_PREFIX>_FLOW_ID : 
 * <FLOWBOX_HEADER_PREFIX>_FLOW_BUSINESS_TRACKING_ID :
 * <FLOWBOX_HEADER_PREFIX>_FLOW_TECHNICAL_TRACKING_ID :
+* <FLOWBOX_HEADER_PREFIX>_ORIGINAL_URI : 
 
 Agent configuration
 -------------------
@@ -405,7 +418,6 @@ as the agent sees fit in its technology context) :
 
 All other configuration elements should be derived from administration protocol and provided by the administration application
 that manages the agent.
-
 
 Application to Agent protocol
 =============================
@@ -434,7 +446,7 @@ when the application itself has no capability to actively start the flows. :
 * Call synchronous service : calls a synchronous service provided by the application to collect the outgoing
   payload. This payload can possibly be processed synchronously or asynchronously further.
 * Consume payload : consume payload on a file path as specified in configuration. This payload is either provided
-through a folder storage, or (next) generates the file on demand.
+  through a folder storage, or (next) generates the file on demand.
 * Run processing : executes a local or remote processing of the application through the execution of 
   a command line job execution. This processing may produce a file or directly send data to the agent (using SDK).
 * Notify outbound progress : provides feedback on outbound communication events to the application (if it did register 
@@ -462,6 +474,7 @@ For inbound flows (ie flows coming in the application, necessarily asynchronous)
 * Report processing progress of inbound flow (internal integration progress). Includes acknowledge of incoming flows.
 
 For other information and services delivered by the agent, not specifically related to application's flows :
+
 * Get application configuration : agent network provides capability to leverage agent infrastructure to distribute
   application configuration to applications at runtime. This information is provided by the administration application.
 * Get application environment configuration : idem for information specific to the environment.
@@ -478,6 +491,7 @@ Agent to Agent protocol
 Agents communicate between themselves with a basic protocol. This protocol has few peculiarities. It is intended
 to be as transparent as possible with respect to the actual payload of applications it does support. Agent to agent
 protocol has three main purposes : 
+
 * heart beat : the heart beat protocol is there to keep agents informed of their neighbors state and expectations. Without
   any application sollicitation, the network of agents takes care to monitor its state in a distributed way with no 
   assumptions of any "master agent or node". Furthermore, since many tasks may take place asynchronously and communication
@@ -522,7 +536,8 @@ issue) a synchronous call on another agent. Synchronous calls are not multiplexe
 Asynchronous calls relaying
 ---------------------------
 Asynchronous payloads processing, handles both push and pull of payloads, and involves notification propagation
-along the way back to the sender 
+along the way back to the sender  :
+
 * Push payloads : to push flows from an agent message store to another
   agent message store. This push can handle messages, or files
   (possibly only by reference). For efficiency, multiple payloads may
@@ -541,9 +556,13 @@ Administration to Agent protocol
 ================================
 
 It is a specific use case of standard application to application protocol. The only difference is that 
-these messages are not forwarded to the underlying application. Administration is as a default in 
+these messages are not forwarded to the underlying applications (since the targets are the agents, not
+the underlying applications). Another peculiarity is that administration to agent flows use a real
+agent ip address (dns entry) to bypass any load balancer.
+
+Administration is as a default in 
 a pull configuration where the administration is strictly passive and waits for agent intiative to
-communicate with them. When configured as active with respect to (some) agents, the administration
+communicate. When configured as active with respect to (some) agents, the administration
 tool contacts the specified agents.
 
 General configuration model
@@ -651,14 +670,14 @@ The agent log structure is highly standardized, with (at least) the following
 
 * date and time of the event
 * all flow characteristics : from/to application & application instances, from/to agents instances & tenants,
-* flow tracking information (unique tracking id)
+* flow tracking information (unique internal tracking id, optional external tracking id)
 * severity of the event (error, warning, info)
 * category of the event (performance, technical, applicative or business)
 * message of the event
 
 Logs access
 -----------
-The agent protocol provides access to agent local logs, with limited performance and history.
+The agent protocol provides access to agent local logs, with limited performance and history depth.
 
 * list logs with a search criteria (appli, environment, time, ...)
 * access detailed logs contents with a search criteria
@@ -680,6 +699,8 @@ The agent must provide a standard http monitoring capability from an outside com
 
 The agent must provide a standard http based active monitoring capability
 * Report health to external URL
+
+For more elaborate or specific protocols, use monitoring SPI.
 
 
 Agent scheduling protocol
@@ -704,7 +725,7 @@ callbacks are defined :
 * Report flow progress through command line
 * Notify event through command line
 
-
+For more elaborate or specific protocols, use scheduler SPI.
 
 
 Security model
@@ -731,9 +752,11 @@ Indicative class diagram of an agent
 
 Yet to be done..
 
+
 APIs
 ****
-
+APIs provide a programmatic interface to applications to use or extend the 
+flowbox agents.
 
 Agent client API
 ================
@@ -751,7 +774,7 @@ distribution, or specific to an application.
 
 API exposing services provided by the agent
 -------------------------------------------
-* Get configuration applicable to the current context
+* Get configuration
 * Register service
 * Open input stream
 * Open output stream
@@ -761,36 +784,50 @@ API exposing services provided by the agent
 API implemented by the extensions
 ---------------------------------
 * Filter available endpoints (routing extension)
-* Run flow
+* Run flow step
 
 
 SPIs
 ****
 
+The purpose of SPIs is to materialize the structure of agents in sub components and make
+possible alternative implementations of some features to meet higher performance or 
+additional capabilities. It is an internal implementation proposal for agents, not a 
+requirement for interoperability of agents.
+
 Repository SPI
 ==============
-The agent code should access the repository in a standardized way. The repository API 
+The agent code should access its configuration repository in a standardized way. The repository API 
 provides configuration information in read only mode. Some agent information still can be 
 stateful and persistent so that upon restart, the state is not lost. First guess on
 the SPI :
-
+* get agent configuration object (for following APIs)
 * get agent instance configuration
 * set agent instance configuration
 * get agent tenant configuration
 * set agent tenant configuration
 * get flow configuration
 * set flow configuration
+* get flow instance configuration
+* set flow instance configuration
+* get application configuration
+* set application configuration
+* get application instance configuration
+* set application instance configuration
+* commit configuration modifications
 * get agent instance state
 * set agent instance state
 * get agent tenant state
 * set agent tenant state
 * get flow state
 * set flow state
-* save state
+* commit state modifications
 
 The repository SPI should be implemented in different implementations :
-* initial implementation should be file based, with json inside, one fragment per configuration piece held in memory by the agent
-* 
+
+* initial implementation should be file based, with json inside, one fragment per configuration piece held in memory by the agent,
+  with simplistic lock policy to support concurrent modification of configuration with agent running,
+* more elaborate implementations may be needed for higher concurrency
 
 Message store SPI
 =================
@@ -826,21 +863,23 @@ Scheduler SPI
 
 The agent infrastructure should smmothly integrate with production schedulers. Beyond built in 
 scheduler protocol, the agent may provide means to interface more closely with schedulers when
-built on proprietary protocols.
+built on proprietary protocols. This SPI should at least support the following tasks : 
+
+* 
 
 Log SPI
 =======
 
-The Log SPI is the standard way for the agent to interact with (local) logs
+The Log SPI is the standard way for the agent to interact with (local) logs. Main functions for this log spi : 
 
-* log a new entry in logs
-* list logs for a search criteria
-* access to logs detailed contents for a search criteria
+* log a new entry in logs, with well defined structure making easy analysis and search by multiple criterias (application,
+  environment, flow, flow occurrence, time, type of log, ...),
+* list logs for a search criteria (at least time interval),
+* access to logs detailed contents for a search criteria.
 
-This SPI should be based on standard platform logging standards (as slf4j or equivalent in different languages).
-Even if only first is actually mandatory, it is highly recommended for an agent to implement the two others so that the agent
-can provide to a central administration basic access to log information in realtime without need for a 
-
+This SPI should be based on standard platform logging tools/frameworks (as slf4j, nlog or equivalent in different languages).
+Even if only first capability is actually mandatory, it is highly recommended for an agent to implement the two others so that the agent
+can provide to a central administration basic access to log information in realtime without need for a log sink.
 
 Notification SPI
 ================
@@ -852,6 +891,16 @@ scheduler capability to notify monitoring tools or mails or any end user, this S
 should provide means to notify external parties (application or administration solutions) of
 what happens in the flows and agents network with specific protocols.
 
+Typical events that can generate a notification :
+
+* flow progress,
+* error in flow execution,
+* agent start/stop,
+* configuration change,
+
+Notification SPI should provide means to register to these events a notification callback in charge 
+of notifying appropriate party with its associated specific protocol. Internally the agent should
+use this notification infrastructure for its own needs to notify applications with standard protocols.
 
 
 
