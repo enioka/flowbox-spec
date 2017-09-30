@@ -478,11 +478,11 @@ For other information and services delivered by the agent, not specifically rela
 * Get application configuration : agent network provides capability to leverage agent infrastructure to distribute
   application configuration to applications at runtime. This information is provided by the administration application.
 * Get application environment configuration : idem for information specific to the environment.
-* Update application state : agent network provides capability to application to provide state information to administration console. This
-  information has no specific semantics for agents themselves, they just relay the information.
-* Log : agent network provides capability to application to centralize some of its logs along with the flowbox logs. This should be limited
-  to logs with relevance to flows (and use proposed standardized log structure to do so and relate logs to specific flows, flow
-  instances and flow occurrences.
+* Update application state : agent network provides capability to application to provide state information 
+  to administration console. This information has no specific semantics for agents themselves, they just relay the information.
+* Log : agent network provides capability to application to centralize some of its logs along with the flowbox logs. 
+  This should be limited to logs with relevance to flows (and use proposed standardized log structure to do so and relate 
+  logs to specific flows, flow instances and flow occurrences.
 
 
 Agent to Agent protocol
@@ -506,7 +506,6 @@ protocol has three main purposes :
 * asynchronous flows relaying : agents act as a general transport infrastructure for asynchronous messages or file transfers. 
   Here also, multiple agents can be cascaded as needed to deliver payloads and provide additional services on top of existing
   flows. Asynchronous flow may change initiator along the path of agents. Asynchronous communications from an agent to another
-  may arbitrarily be initiated by an agent or another, even if pushing from initiator is the default recommended way.
 
 Heart beat
 ----------
@@ -543,8 +542,8 @@ along the way back to the sender  :
   (possibly only by reference). For efficiency, multiple payloads may
   be multiplexed. Files may be broken down. Push is the preferred transport for asynchronous communications.
 * Receive payloads : this is the converse of previous seen from the other agent.
-* Push notifications : to report flows progress to other agents
-  involved in the communication. Possibly part of the heartbeat process rather than a dedicated call.
+* Push notifications : to report flows progress to other agents involved in the communication. Possibly part of the 
+  heartbeat process rather than a dedicated call.
 * Process notifications : this is the converse of previous seen from the other agent.
 * Pull payloads : to pull payloads from another when security constraints require to pull rather than push.
 * Serve payloads : this is the converse of previous seen from the other agent.
